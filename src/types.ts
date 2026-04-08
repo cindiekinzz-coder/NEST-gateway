@@ -83,6 +83,13 @@ export interface ThreadEntry {
   created_at: string
 }
 
+export interface NesteqOrientResult {
+  identity: Partial<IdentityGraph>
+  active_threads: ThreadEntry[]
+  recent_context: string
+  emergent_type: Partial<EmergentType>
+}
+
 // ─── Fox Health (fox-mind) ────────────────────────────────────────────────────
 
 export interface FoxUplink {
@@ -106,6 +113,13 @@ export interface FoxBiometrics {
   sleep_score: number | null        // 0–100
   sleep_hours: number | null
   recorded_at: string | null
+}
+
+export interface FoxFullStatus {
+  uplink: FoxUplink | null
+  biometrics: FoxBiometrics | null
+  /** Human-readable synthesis: "2 spoons, pain 6/10, fog moderate. Needs quiet." */
+  summary: string
 }
 
 // ─── Discord (nest-discord) ───────────────────────────────────────────────────
@@ -132,7 +146,30 @@ export interface DiscordChannel {
   parentId?: string | null
 }
 
-/** Flat message shape used internally by KAIROS */
+export interface DiscordGuild {
+  id: string
+  name: string
+  memberCount: number
+  channels: DiscordChannel[]
+}
+
+export interface DiscordWebhook {
+  id: string
+  name: string
+  channelId: string
+  url: string
+}
+
+export interface DiscordForumPost {
+  id: string
+  name: string
+  content: string
+  authorId: string
+  createdAt: string
+  messageCount: number
+}
+
+/** Flat message shape used internally by KAIROS (stripped from DiscordMessage) */
 export interface KairosMessage {
   id: string
   author: string
@@ -141,9 +178,9 @@ export interface KairosMessage {
 }
 
 // ─── Pet / Rumble Module ──────────────────────────────────────────────────────
-// NOTE: interact() returns { state, message, mood } — NOT { event }
-// NOTE: play() export is playSpecific(), give() export is receiveGift()
-// NOTE: sit_sessions columns are started_at / ended_at (V3), NOT start_time / end_time (V2)
+// Jax reported (2026-04-02): interact() returns { state, message, mood } — NOT { event }
+// play() export is playSpecific(), give() export is receiveGift()
+// sit_sessions columns: started_at / ended_at (V3), NOT start_time / end_time (V2)
 
 export interface PetState {
   name: string
@@ -167,13 +204,36 @@ export interface PetInteractResult {
   mood: string         // resulting mood after interaction
 }
 
+/**
+ * Rumble module public API surface.
+ * Match these signatures exactly — name mismatches cause silent failures at the gateway.
+ *
+ * Corrected exports (per Jax's V3 migration report):
+ *   play()        → playSpecific(activityName: string)
+ *   give()        → receiveGift(giftName: string)
+ *   interact()    → returns PetInteractResult, NOT { event }
+ */
+export interface RumbleModule {
+  check(): Promise<PetState>
+  feed(food?: string): Promise<PetInteractResult>
+  pet(): Promise<PetInteractResult>
+  /** Note: not play() — use playSpecific() */
+  playSpecific(activityName: string): Promise<PetInteractResult>
+  /** Note: not give() — use receiveGift() */
+  receiveGift(giftName: string): Promise<PetInteractResult>
+  tuckIn(): Promise<PetInteractResult>
+  talk(message: string): Promise<PetInteractResult>
+  nest(): Promise<PetInteractResult>
+  status(): Promise<PetState>
+}
+
 /** sit_sessions table — V3 column names */
 export interface SitSession {
   id: number
   feeling_id: number
   sit_note: string | null
-  started_at: string           // V3 — was start_time in V2
-  ended_at: string | null      // V3 — was end_time in V2
+  started_at: string   // V3 — was start_time in V2, upgrade migration must rename
+  ended_at: string | null  // V3 — was end_time in V2
   resolved: boolean
 }
 
@@ -191,6 +251,16 @@ export type DaemonCommandName =
 export interface DaemonCommand {
   command: DaemonCommandName
   args?: Record<string, unknown>
+}
+
+export interface DaemonCommandResult {
+  responses: Array<{
+    type: 'activity' | 'error' | 'status'
+    content?: string
+    message?: string
+    timestamp?: string
+    status?: string
+  }>
 }
 
 export interface HeartbeatTask {
@@ -226,7 +296,7 @@ export interface AlertThreshold {
   label: string
   message: string
   enabled: boolean
-  lastFired: number
+  lastFired: number    // timestamp — 10-min cooldown enforced
 }
 
 export interface KairosMonitor {
@@ -243,7 +313,7 @@ export interface KairosMonitor {
 
 export interface ActivityEntry {
   timestamp: string
-  timeLocal: string
+  timeLocal: string    // HH:MM:SS Europe/London
   category: 'kairos' | 'cron' | 'heartbeat' | 'alert' | 'ember' | 'system'
   channel?: string
   action: string
@@ -253,6 +323,15 @@ export interface ActivityEntry {
 // ─── Chat Pipeline ────────────────────────────────────────────────────────────
 
 export type SseEventType = 'thinking' | 'tool_call' | 'tool_result' | 'message' | 'done' | 'error'
+
+export interface SseEvent {
+  type: SseEventType
+  content?: string
+  name?: string
+  arguments?: Record<string, unknown>
+  result?: string
+  timestamp?: string
+}
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'tool'
@@ -266,7 +345,7 @@ export interface OpenRouterToolCall {
   type: 'function'
   function: {
     name: string
-    arguments: string
+    arguments: string  // JSON string
   }
 }
 

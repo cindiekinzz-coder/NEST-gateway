@@ -10,7 +10,7 @@ compatibility_date = "2024-01-01"
 AI_MIND_URL = "https://your-nesteq-worker.workers.dev"
 FOX_HEALTH_URL = "https://your-fox-health-worker.workers.dev"
 DISCORD_MCP_URL = "https://your-discord-mcp-worker.workers.dev"
-CHAT_MODEL = "anthropic/claude-sonnet-4-5"
+CHAT_MODEL = "qwen/qwen3.6-plus"
 ELEVENLABS_VOICE_ID = "your-voice-id-here"
 CLOUDFLARE_ACCOUNT_ID = "your-cloudflare-account-id"
 
